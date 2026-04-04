@@ -1,21 +1,44 @@
 import torch
 
+def bytes_to_unicode():
+    bs = (
+            list(range(ord("!"), ord("~") + 1))
+            )
+    cs = bs
+    n = 0
+    for b in range(256):
+        if b not in bs:
+            bs.append(b)
+            cs.append(256+n)
+            n += 1
+    cs = [chr(c) for c in cs]
+    return dict(zip(bs, cs))
+
+def get_pairs(word):
+    pairs = set()
+    prev_char = word[0]
+    for ch in word[1:]:
+        pairs.add((prev_char, ch))
+        prev_char = ch
+    return pairs
+
+def encode(data, stoi):
+    return [stoi[c] for c in data]
+
 def pretokenize(file_path:str):
     with open(file_path, 'r', encoding='utf-8') as f:
         data = f.read()
     chars = sorted(set(data))
-    vocab_size = len(chars)
     stoi = {ch:i for i, ch in enumerate(chars)}
     itos = {i:ch for i, ch in enumerate(chars)}
-    encode = lambda s: [stoi[c] for c in s]
-    decode = lambda l: ''.join([itos[i] for i in l])
-    data = torch.tensor(encode(data), dtype=torch.long).to("cuda")
-    return data, vocab_size, stoi, itos
 
-def get_batch(data, block_size, batch_size):
+    data = torch.tensor(encode(data, stoi), dtype=torch.long)
+    return data, len(chars), stoi, itos
+
+def get_batch(data, block_size, batch_size, device):
     ix = torch.randint(len(data) - block_size, (batch_size,))
-    x = torch.stack([data[i:i+block_size] for i in ix]).to("cuda")
-    y = torch.stack([data[i+1:i+block_size+1] for i in ix]).to("cuda")
+    x = torch.stack([data[i:i+block_size] for i in ix]).to(device)
+    y = torch.stack([data[i+1:i+block_size+1] for i in ix]).to(device)
     return x, y
 
 def train_val_split(data, block_size, batch_size):

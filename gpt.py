@@ -8,8 +8,8 @@ from modules import Block
 class GPTLanguageModel(nn.Module):
     def __init__(self, vocab_size, block_size, n_embd, n_head, n_layer, dropout):
         super().__init__()
-        self.token_embedding_table = nn.Embedding(vocab_size, n_embd).to('cuda')
-        self.position_embedding_table = nn.Embedding(block_size, n_embd).to('cuda')
+        self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
+        self.position_embedding_table = nn.Embedding(block_size, n_embd)
         self.layers = nn.Sequential(*[Block(n_embd, n_head, block_size, dropout) for _ in range(n_layer)])
         
         self.ln_f = nn.LayerNorm(n_embd)
@@ -28,9 +28,10 @@ class GPTLanguageModel(nn.Module):
     def forward(self, index, targets=None):
         b, t = index.shape
 
+        device = index.device
 
         tok_emb = self.token_embedding_table(index)
-        pos_emb = self.position_embedding_table(torch.arange(t, device='cuda'))
+        pos_emb = self.position_embedding_table(torch.arange(t, device=device))
         x = tok_emb + pos_emb
         x = self.layers(x)
         x = self.ln_f(x)
