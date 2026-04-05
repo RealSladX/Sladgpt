@@ -1,11 +1,39 @@
+import json
+import math
 import os
-from output import fancy_print, check_torch, print_x_y
-from utils import pretokenize, train_val_split, estimate_loss, bytes_to_unicode
-import torch
 from pprint import pp
+from typing import Dict, Tuple
+
+import numpy as np
+import torch
+from torch.optim import AdamW
+
+from byte_bpe import ByteBPETokenizer
 from gpt import GPTLanguageModel
-import pickle
-from pprint import pprint
+from output import check_torch, fancy_print, print_iterate_files
+from parameters import (
+    DATA_bin_dir,
+    DATA_prefix,
+    MODEL_batch_size,
+    MODEL_block_size,
+    MODEL_ckpt_name,
+    MODEL_dropout,
+    MODEL_eval_interval,
+    MODEL_eval_iters,
+    MODEL_grad_clip,
+    MODEL_learning_rate,
+    MODEL_max_iters,
+    MODEL_n_decoder_layers,
+    MODEL_n_embeddings,
+    MODEL_n_head,
+    MODEL_sample_tokens_after,
+    MODEL_sample_tokens_before,
+    MODEL_test_prompt,
+    MODEL_weight_decay,
+    TOKENIZER_merges_txt,
+    TOKENIZER_vocab_json,
+)
+
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -15,6 +43,8 @@ ABS_PATH = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(ABS_PATH, "data")
 data_files = os.scandir(DATA_PATH)
 MODEL_PATH = os.path.join(ABS_PATH, "models")
+vocab_json_path = os.path.join(ABS_PATH, TOKENIZER_vocab_json)
+vocab_merges_path = os.path.join(ABS_PATH, TOKENIZER_merges_txt)
 
 block_size = 32
 batch_size = 16
@@ -32,18 +62,19 @@ file_name = "TinyStoriesV2-GPT4-valid.txt"
 test_input = "Thou "
 
 check_torch()
-# output.fancy_print("Identifying available data...")
-# output.print_iterate_files(data_files)
 
 
+fancy_print("Identifying available data...")
+print_iterate_files(data_files)
 
-# fancy_print(f"Encoding {file_name}")
+fancy_print(f"Encoding {file_name}")
 
-# enc_tensor, vocab_size, stoi, itos = pretokenize(os.path.join(DATA_PATH, f"{file_name}"))
-# encode = lambda s: [stoi[c] for c in s]
-# decode = lambda l: ''.join([itos[i] for i in l])
-# tensor_size = str(round(len(enc_tensor) / 1e9, 3))
-# fancy_print(f"Successfully created tensor Size: {tensor_size} GB")
+data, vocab_size, stoi, itos = pretokenize(os.path.join(DATA_PATH, f"{file_name}"))
+encode = lambda s: [stoi[c] for c in s]
+decode = lambda l: ''.join([itos[i] for i in l])
+tensor_size = str(round(len(data) / 1e9, 3))
+fancy_print(f"Successfully created tensor Size: {tensor_size} GB")
+
 #
 # fancy_print(f"Utilitzing GPT Language Model")
 # fancy_print(f"Embedding Vector Size: {n_embeddings}, Number of Attention Heads: {n_head}, Number of Decoder Layers: {n_decoder_layers},")
