@@ -13,13 +13,9 @@ from byte_bpe import ByteBPETokenizer
 from gpt import GPTLanguageModel
 from output import check_torch, fancy_print, print_iterate_files
 from parameters import (
-    DATA_bin_dir,
-    DATA_prefix,
     MODEL_batch_size,
     MODEL_block_size,
-    MODEL_ckpt_name,
     MODEL_dropout,
-    MODEL_eval_interval,
     MODEL_eval_iters,
     MODEL_grad_clip,
     MODEL_learning_rate,
@@ -27,9 +23,6 @@ from parameters import (
     MODEL_n_decoder_layers,
     MODEL_n_embeddings,
     MODEL_n_head,
-    MODEL_sample_tokens_after,
-    MODEL_sample_tokens_before,
-    MODEL_test_prompt,
     MODEL_weight_decay,
     TOKENIZER_merges_txt,
     TOKENIZER_vocab_json,
@@ -47,19 +40,19 @@ MODEL_PATH = os.path.join(ABS_PATH, "models")
 vocab_json_path = os.path.join(ABS_PATH, TOKENIZER_vocab_json)
 vocab_merges_path = os.path.join(ABS_PATH, TOKENIZER_merges_txt)
 
-block_size = 32
-batch_size = 16
-max_iters = 10000
-eval_iters = 1000
-learning_rate=3e-4
-weight_decay = 0.1
-grad_clip = 1.0
-n_embeddings = 512
-n_head = 8
-n_decoder_layers = 8
-dropout = 0.1
+block_size = MODEL_block_size
+batch_size = MODEL_batch_size
+max_iters = MODEL_max_iters
+eval_iters = MODEL_eval_iters
+learning_rate= MODEL_learning_rate
+weight_decay = MODEL_weight_decay
+grad_clip = MODEL_grad_clip
+n_embeddings = MODEL_n_embeddings
+n_head = MODEL_n_head
+n_decoder_layers = MODEL_n_decoder_layers
+dropout = MODEL_dropout
 
-file_name = "TinyStoriesV2-GPT4-valid.txt"
+file_name = "TinyStoriesV2-GPT4-train.txt"
 test_input = "Thou "
 
 check_torch()
@@ -107,12 +100,20 @@ for iter in range(max_iters+1):
 
 
 generated_chars = decode(m.generate(context, 500)[0].tolist())
-fancy_print(f"Model performance after 5000 iterations")
+fancy_print(f"Model performance after 10000 iterations")
 pp(f"When input is {decode(context.to('cpu').numpy()[0])} the output is:")
 pp(f"{generated_chars}")
 
 fancy_print("Saving Model...")
+torch.save({
+    "model_state_dict": m.state_dict(),
+    "vocab_size": vocab_size,
+    "block_size": block_size,
+    "n_embeddings": n_embeddings,
+    "n_head": n_head,
+    "n_decoder_layers": n_decoder_layers,
+    "dropout": dropout,
+}, os.path.join(MODEL_PATH, "model-05.pt"))
 
-with open(os.path.join(MODEL_PATH, 'model-05.pkl'), 'wb') as f:
-    pickle.dump(m, f)
+
 fancy_print('Model Saved!')
