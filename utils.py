@@ -35,6 +35,17 @@ def pretokenize(file_path:str):
     data = torch.tensor(encode(data, stoi), dtype=torch.long)
     return data, len(chars), stoi, itos
 
+def pretokenize_limited(file_path: str, max_chars: int = 50_000_000):
+    with open(file_path, 'r', encoding='utf-8') as f:
+        data = f.read(max_chars)
+
+    chars = sorted(set(data))
+    stoi = {ch:i for i, ch in enumerate(chars)}
+    itos = {i:ch for i, ch in enumerate(chars)}
+
+    data = torch.tensor([stoi[c] for c in data], dtype=torch.long)
+    return data, len(chars), stoi, itos
+
 def get_batch(data, block_size, batch_size, device):
     ix = torch.randint(len(data) - block_size, (batch_size,))
     x = torch.stack([data[i:i+block_size] for i in ix]).to(device)

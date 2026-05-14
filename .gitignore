@@ -13,3 +13,4 @@ checkpoints/
 data/
 .ipynb_checkpoints/
 models/
+data_bin/*
