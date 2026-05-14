@@ -8,6 +8,9 @@ from modules import Block
 class GPTLanguageModel(nn.Module):
     def __init__(self, vocab_size, block_size, n_embd, n_head, n_layer, dropout):
         super().__init__()
+        self.vocab_size = vocab_size
+        self.block_size = block_size
+
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
         self.position_embedding_table = nn.Embedding(block_size, n_embd)
         self.layers = nn.Sequential(*[Block(n_embd, n_head, block_size, dropout) for _ in range(n_layer)])
@@ -28,8 +31,11 @@ class GPTLanguageModel(nn.Module):
     def forward(self, index, targets=None):
         b, t = index.shape
 
+        if t > self.block_size:
+            raise ValueError(
+                f"Cannot forward sequence of length {t}; block_size={self.block_size}"
+            )
         device = index.device
-
         tok_emb = self.token_embedding_table(index)
         pos_emb = self.position_embedding_table(torch.arange(t, device=device))
         x = tok_emb + pos_emb
@@ -50,11 +56,14 @@ class GPTLanguageModel(nn.Module):
 
         return logits, loss
 
-    def generate(self, index, max_new_tokens, block_size):
+    @torch.no_grad()
+    def generate(self, index, max_new_tokens):
+        self.eval()
         # index is (B, T) array of indices in the current context
+
         for _ in range(max_new_tokens):
             # crop idx to the last block_size tokens
-            index_cond = index[:, -block_size:]
+            index_cond = index[:, -self.block_size:]
             # get the predictions
             logits, loss = self.forward(index_cond)
             # focus only on the last time step

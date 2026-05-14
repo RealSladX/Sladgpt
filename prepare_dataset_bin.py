@@ -193,14 +193,14 @@ def prepare_from_text_files(
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump(
             {
-                "dataset_name": dataset_name,
+                "dataset_name": "text",
                 "vocab_size": tokenizer.vocab_size,
                 "eot_token": tokenizer.eot_token,
                 "dtype": dtype_name,
-                "train_examples": count_train,
-                "val_examples": count_val,
-                "train_tokens": tokens_train,
-                "val_tokens": tokens_val,
+                "train_examples": 1,
+                "val_examples": 1,
+                "train_tokens": len(train_ids),
+                "val_tokens": len(val_ids),
                 "train_bin": train_path,
                 "val_bin": val_path,
             },

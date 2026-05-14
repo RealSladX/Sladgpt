@@ -3,11 +3,12 @@ import math
 import os
 from pprint import pp
 from typing import Dict, Tuple
+import pickle
 
 import numpy as np
 import torch
 from torch.optim import AdamW
-
+from utils import pretokenize, estimate_loss, train_val_split
 from byte_bpe import ByteBPETokenizer
 from gpt import GPTLanguageModel
 from output import check_torch, fancy_print, print_iterate_files
@@ -75,44 +76,43 @@ decode = lambda l: ''.join([itos[i] for i in l])
 tensor_size = str(round(len(data) / 1e9, 3))
 fancy_print(f"Successfully created tensor Size: {tensor_size} GB")
 
-#
-# fancy_print(f"Utilitzing GPT Language Model")
-# fancy_print(f"Embedding Vector Size: {n_embeddings}, Number of Attention Heads: {n_head}, Number of Decoder Layers: {n_decoder_layers},")
-# bmodel = GPTLanguageModel(vocab_size, block_size, n_embeddings, n_head, n_decoder_layers, dropout)
-# m = bmodel.to(device)
-#
-# # Measure Initial Model Performance
-# encoded_input = encode(test_input)
-# context = torch.tensor([encoded_input], dtype=torch.long, device=device)
-# generated_chars = decode(m.generate(context, 500, block_size)[0].tolist())
-# fancy_print(f"Initial model performance")
-# pp(f"When input is {decode(context.to('cpu').numpy()[0])} the output is:")
-# pp(f"{generated_chars}")
-#
-#
-#
-# optimizer = torch.optim.AdamW(bmodel.parameters(), lr=learning_rate)
-#
-# for iter in range(max_iters+1):
-#     loss_diff = 0
-#     if iter % eval_iters == 0:
-#         losses = estimate_loss(m, eval_iters, enc_tensor, block_size, batch_size)
-#         fancy_print(f"{iter+1} training loss: {losses['train']:.2f} validation loss: {losses['val']:.2f}")
-#
-#     train_x, train_y, val_x, val_y = train_val_split(enc_tensor, block_size, batch_size)
-#     logits, loss = m.forward(train_x, train_y)
-#     optimizer.zero_grad(set_to_none=True)
-#     loss.backward()
-#     optimizer.step()
-#
-#
-# generated_chars = decode(m.generate(context, 500, block_size)[0].tolist())
-# fancy_print(f"Model performance after 5000 iterations")
-# pp(f"When input is {decode(context.to('cpu').numpy()[0])} the output is:")
-# pp(f"{generated_chars}")
-#
-# fancy_print("Saving Model...")
-#
-# with open(os.path.join(MODEL_PATH, 'model-05.pkl'), 'wb') as f:
-#     pickle.dump(m, f)
-# fancy_print('Model Saved!')
+
+fancy_print(f"Utilitzing GPT Language Model")
+fancy_print(f"Embedding Vector Size: {n_embeddings}, Number of Attention Heads: {n_head}, Number of Decoder Layers: {n_decoder_layers},")
+bmodel = GPTLanguageModel(vocab_size, block_size, n_embeddings, n_head, n_decoder_layers, dropout)
+m = bmodel.to(device)
+
+# Measure Initial Model Performance
+encoded_input = encode(test_input)
+context = torch.tensor([encoded_input], dtype=torch.long, device=device)
+generated_chars = decode(m.generate(context, 500)[0].tolist())
+fancy_print(f"Initial model performance")
+pp(f"When input is {decode(context.to('cpu').numpy()[0])} the output is:")
+pp(f"{generated_chars}")
+
+
+
+optimizer = torch.optim.AdamW(bmodel.parameters(), lr=learning_rate)
+
+for iter in range(max_iters+1):
+    if iter % eval_iters == 0:
+        losses = estimate_loss(m, eval_iters, data, block_size, batch_size, device)
+        fancy_print(f"{iter+1} training loss: {losses['train']:.2f} validation loss: {losses['val']:.2f}")
+
+    train_x, train_y, val_x, val_y = train_val_split(data, block_size, batch_size, device)
+    logits, loss = m.forward(train_x, train_y)
+    optimizer.zero_grad(set_to_none=True)
+    loss.backward()
+    optimizer.step()
+
+
+generated_chars = decode(m.generate(context, 500)[0].tolist())
+fancy_print(f"Model performance after 5000 iterations")
+pp(f"When input is {decode(context.to('cpu').numpy()[0])} the output is:")
+pp(f"{generated_chars}")
+
+fancy_print("Saving Model...")
+
+with open(os.path.join(MODEL_PATH, 'model-05.pkl'), 'wb') as f:
+    pickle.dump(m, f)
+fancy_print('Model Saved!')

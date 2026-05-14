@@ -41,22 +41,22 @@ def get_batch(data, block_size, batch_size, device):
     y = torch.stack([data[i+1:i+block_size+1] for i in ix]).to(device)
     return x, y
 
-def train_val_split(data, block_size, batch_size):
+def train_val_split(data, block_size, batch_size, device):
     n = int(0.8*len(data))
     train_data = data[:n]
-    train_x, train_y = get_batch(train_data, block_size, batch_size)
+    train_x, train_y = get_batch(train_data, block_size, batch_size, device)
     val_data = data[n:]
-    val_x, val_y = get_batch(val_data, block_size, batch_size)
+    val_x, val_y = get_batch(val_data, block_size, batch_size, device)
     return train_x, train_y, val_x, val_y
 
 @torch.no_grad()
-def estimate_loss(model, eval_iters, data, block_size, batch_size):
+def estimate_loss(model, eval_iters, data, block_size, batch_size, device):
     out = {}
     model.eval()
-    losses_train = torch.zeros(eval_iters).to("cuda")
-    losses_val = torch.zeros(eval_iters).to("cuda")
+    losses_train = torch.zeros(eval_iters).to(device)
+    losses_val = torch.zeros(eval_iters).to(device)
     for k in range(eval_iters):
-        train_x, train_y, val_x, val_y = train_val_split(data, block_size, batch_size)
+        train_x, train_y, val_x, val_y = train_val_split(data, block_size, batch_size, device)
         logits, loss = model(train_x, train_y)
         losses_train[k] = loss.item()
         logits, loss = model(val_x, val_y)
