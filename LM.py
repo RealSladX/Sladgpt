@@ -173,7 +173,6 @@ for prompt in MODEL_test_prompts:
             penalty_window=64,
         )[0].tolist()
     )
-    fancy_print(f"Model performance after {max_iters} iterations")
     pp(f"When input is {decode(context.to('cpu').numpy()[0])} the output is:")
     pp(f"{generated_chars}")
 
