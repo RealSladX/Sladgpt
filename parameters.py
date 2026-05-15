@@ -1,6 +1,6 @@
-MODEL_block_size = 128
-MODEL_batch_size = 4
-MODEL_max_iters = 120000
+MODEL_block_size = 256
+MODEL_batch_size = 2
+MODEL_max_iters = 30000
 MODEL_eval_interval = 1000
 MODEL_eval_iters = 100
 MODEL_learning_rate = 3e-4

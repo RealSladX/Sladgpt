@@ -148,9 +148,9 @@ for prompt in MODEL_test_prompts:
             context,
             300,
             temperature=0.85,
-            top_k=120,
-            top_p=0.92,
-            repetition_penalty=1.1,
+            top_k=80,
+            top_p=0.85,
+            repetition_penalty=1.15,
             penalty_window=64,
         )[0].tolist()
     )
