@@ -54,7 +54,7 @@ encode = lambda s: [stoi[c] for c in s]
 decode = lambda l: ''.join([itos[i] for i in l])
 
 fancy_print(f"Utilitzing GPT Language Model")
-fancy_print(f"Embedding Vector Size: {n_embeddings}, Number of Attention Heads: {n_head}, Number of Decoder Layers: {n_decoder_layers},")
+fancy_print(f"Block size: {block_size}, Embedding Vector Size: {n_embeddings}, Number of Attention Heads: {n_head}, Number of Decoder Layers: {n_decoder_layers},")
 bmodel = GPTLanguageModel(vocab_size, block_size, n_embeddings, n_head, n_decoder_layers, dropout)
 m = bmodel.to(device)
 
@@ -94,6 +94,7 @@ if os.path.exists(ckpt_path):
         m.load_state_dict(ckpt["model_state_dict"])
         optimizer.load_state_dict(ckpt["optimizer_state_dict"])
         start_iter = ckpt["iter"] + 1
+        scheduler.load_state_dict(ckpt["scheduler_state_dict"])
         fancy_print(f"Resuming from iteration {start_iter}")
     else:
         fancy_print("Checkpoint architecture mismatch; starting fresh")
