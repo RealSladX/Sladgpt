@@ -62,8 +62,22 @@ m = bmodel.to(device)
 encoded_input = encode(MODEL_test_prompt)
 context = torch.tensor([encoded_input], dtype=torch.long, device=device)
 optimizer = torch.optim.AdamW(m.parameters(), lr=learning_rate, weight_decay=weight_decay)
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+    optimizer,
+    T_max=max_iters,
+    eta_min=learning_rate * 0.1,
+)
+ckpt_name = (
+    f"tinystories_char_"
+    f"bs{block_size}_"
+    f"bt{batch_size}_"
+    f"emb{n_embeddings}_"
+    f"h{n_head}_"
+    f"l{n_decoder_layers}.pt"
+)
 
-ckpt_path = os.path.join("./models", "model-05.pt")
+ckpt_path = os.path.join("./models", ckpt_name)
+
 start_iter = 0
 
 if os.path.exists(ckpt_path):
@@ -85,7 +99,7 @@ if os.path.exists(ckpt_path):
         fancy_print("Checkpoint architecture mismatch; starting fresh")
 
 generated_chars = decode(m.generate(context, 500, temperature=0.7, top_k=40)[0].tolist())
-fancy_print(f"Initial model performance")
+fancy_print(f"Current model performance")
 pp(f"When input is {decode(context.to('cpu').numpy()[0])} the output is:")
 pp(f"{generated_chars}")
 
@@ -105,6 +119,7 @@ for iter in range(start_iter, max_iters + 1):
     loss.backward()
     torch.nn.utils.clip_grad_norm_(m.parameters(), grad_clip)
     optimizer.step()
+    scheduler.step()
 
 generated_chars = decode(m.generate(context, 500,temperature=0.7, top_k=40)[0].tolist())
 fancy_print(f"Model performance after {max_iters} iterations")
@@ -112,16 +127,19 @@ pp(f"When input is {decode(context.to('cpu').numpy()[0])} the output is:")
 pp(f"{generated_chars}")
 
 fancy_print("Saving Model...")
+
+
 torch.save({
     "iter": last_iter,
     "model_state_dict": m.state_dict(),
     "optimizer_state_dict": optimizer.state_dict(),
+    "scheduler_state_dict": scheduler.state_dict(),
     "vocab_size": vocab_size,
     "block_size": block_size,
     "n_embeddings": n_embeddings,
     "n_head": n_head,
     "n_decoder_layers": n_decoder_layers,
     "dropout": dropout,
-}, os.path.join("./models", "model-05.pt"))
+}, ckpt_path)
 
 fancy_print('Model Saved!')
