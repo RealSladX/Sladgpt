@@ -57,7 +57,7 @@ class GPTLanguageModel(nn.Module):
         return logits, loss
 
     @torch.no_grad()
-    def generate(self, index, max_new_tokens):
+    def generate(self, index, max_new_tokens, temperature=0.8, top_k=None):
         self.eval()
         # index is (B, T) array of indices in the current context
 
@@ -67,7 +67,12 @@ class GPTLanguageModel(nn.Module):
             # get the predictions
             logits, loss = self.forward(index_cond)
             # focus only on the last time step
-            logits = logits[:, -1, :] # becomes (B, C)
+            logits = logits[:, -1, :] / temperature # becomes (B, C)
+
+            if top_k is not None:
+                v, _ = torch.topk(logits,min(top_k, logits.size(-1)))
+                logits[logits < v[:, [-1]]] = -float("inf")
+
             # apply softmax to get probabilities
             probs = F.softmax(logits, dim=-1) # (B, C)
             # sample from the distribution

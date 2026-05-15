@@ -61,15 +61,39 @@ m = bmodel.to(device)
 # Measure Initial Model Performance
 encoded_input = encode(MODEL_test_prompt)
 context = torch.tensor([encoded_input], dtype=torch.long, device=device)
-generated_chars = decode(m.generate(context, 500)[0].tolist())
+optimizer = torch.optim.AdamW(m.parameters(), lr=learning_rate, weight_decay=weight_decay)
+
+ckpt_path = os.path.join("./models", "model-05.pt")
+start_iter = 0
+
+if os.path.exists(ckpt_path):
+    ckpt = torch.load(ckpt_path, map_location=device)
+
+    if (
+        ckpt["vocab_size"] == vocab_size
+        and ckpt["block_size"] == block_size
+        and ckpt["n_embeddings"] == n_embeddings
+        and ckpt["n_head"] == n_head
+        and ckpt["n_decoder_layers"] == n_decoder_layers
+        and ckpt["dropout"] == dropout
+    ):
+        m.load_state_dict(ckpt["model_state_dict"])
+        optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+        start_iter = ckpt["iter"] + 1
+        fancy_print(f"Resuming from iteration {start_iter}")
+    else:
+        fancy_print("Checkpoint architecture mismatch; starting fresh")
+
+generated_chars = decode(m.generate(context, 500, temperature=0.7, top_k=40)[0].tolist())
 fancy_print(f"Initial model performance")
 pp(f"When input is {decode(context.to('cpu').numpy()[0])} the output is:")
 pp(f"{generated_chars}")
 
 
+last_iter = start_iter - 1
 
-optimizer = torch.optim.AdamW(m.parameters(), lr=learning_rate, weight_decay=weight_decay)
-for iter in range(max_iters + 1):
+for iter in range(start_iter, max_iters + 1):
+    last_iter = iter
     if iter % eval_interval == 0:
         losses = estimate_loss(m, batch_provider, eval_iters)
         fancy_print(f"{iter+1} training loss: {losses['train']:.2f} validation loss: {losses['val']:.2f}")
@@ -82,14 +106,16 @@ for iter in range(max_iters + 1):
     torch.nn.utils.clip_grad_norm_(m.parameters(), grad_clip)
     optimizer.step()
 
-generated_chars = decode(m.generate(context, 500)[0].tolist())
+generated_chars = decode(m.generate(context, 500,temperature=0.7, top_k=40)[0].tolist())
 fancy_print(f"Model performance after {max_iters} iterations")
 pp(f"When input is {decode(context.to('cpu').numpy()[0])} the output is:")
 pp(f"{generated_chars}")
 
 fancy_print("Saving Model...")
 torch.save({
+    "iter": last_iter,
     "model_state_dict": m.state_dict(),
+    "optimizer_state_dict": optimizer.state_dict(),
     "vocab_size": vocab_size,
     "block_size": block_size,
     "n_embeddings": n_embeddings,
@@ -97,6 +123,5 @@ torch.save({
     "n_decoder_layers": n_decoder_layers,
     "dropout": dropout,
 }, os.path.join("./models", "model-05.pt"))
-
 
 fancy_print('Model Saved!')
