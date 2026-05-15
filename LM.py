@@ -1,3 +1,4 @@
+import math
 import os
 from pprint import pp
 import torch
@@ -62,11 +63,25 @@ m = bmodel.to(device)
 encoded_input = encode(MODEL_test_prompt)
 context = torch.tensor([encoded_input], dtype=torch.long, device=device)
 optimizer = torch.optim.AdamW(m.parameters(), lr=learning_rate, weight_decay=weight_decay)
-scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-    optimizer,
-    T_max=max_iters,
-    eta_min=learning_rate * 0.1,
-)
+
+base_lr = learning_rate
+min_lr = learning_rate * 0.1
+
+def get_lr(iter_num: int) -> float:
+    if iter_num >= max_iters:
+        return min_lr
+
+    decay_ratio = iter_num / max_iters
+    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
+    return min_lr + coeff * (base_lr - min_lr)
+
+def set_lr(iter_num: int) -> float:
+    lr = get_lr(iter_num)
+    for param_group in optimizer.param_groups:
+        param_group["lr"] = lr
+    return lr
+
+
 ckpt_name = (
     f"tinystories_char_"
     f"bs{block_size}_"
@@ -94,7 +109,6 @@ if os.path.exists(ckpt_path):
         m.load_state_dict(ckpt["model_state_dict"])
         optimizer.load_state_dict(ckpt["optimizer_state_dict"])
         start_iter = ckpt["iter"] + 1
-        scheduler.load_state_dict(ckpt["scheduler_state_dict"])
         fancy_print(f"Resuming from iteration {start_iter}")
     else:
         fancy_print("Checkpoint architecture mismatch; starting fresh")
@@ -109,9 +123,10 @@ last_iter = start_iter - 1
 
 for iter in range(start_iter, max_iters + 1):
     last_iter = iter
+    lr_now = set_lr(iter)
     if iter % eval_interval == 0:
         losses = estimate_loss(m, batch_provider, eval_iters)
-        fancy_print(f"{iter+1} training loss: {losses['train']:.2f} validation loss: {losses['val']:.2f}")
+        fancy_print(f"{iter+1} training loss: {losses['train']:.2f} validation loss: {losses['val']:.2f} lr: {lr_now:.2e}")
 
     train_x, train_y = batch_provider.get_batch("train")
     logits, loss = m(train_x, train_y)
@@ -120,7 +135,6 @@ for iter in range(start_iter, max_iters + 1):
     loss.backward()
     torch.nn.utils.clip_grad_norm_(m.parameters(), grad_clip)
     optimizer.step()
-    scheduler.step()
 
 generated_chars = decode(m.generate(context, 500,temperature=0.7, top_k=40)[0].tolist())
 fancy_print(f"Model performance after {max_iters} iterations")
@@ -134,7 +148,6 @@ torch.save({
     "iter": last_iter,
     "model_state_dict": m.state_dict(),
     "optimizer_state_dict": optimizer.state_dict(),
-    "scheduler_state_dict": scheduler.state_dict(),
     "vocab_size": vocab_size,
     "block_size": block_size,
     "n_embeddings": n_embeddings,
