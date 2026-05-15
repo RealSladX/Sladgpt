@@ -4,8 +4,11 @@ from pprint import pp
 import torch
 from data_utils import build_dataset_paths, BatchProvider, estimate_loss
 from gpt import GPTLanguageModel
+from byte_bpe import ByteBPETokenizer
 from output import check_torch, fancy_print
 from parameters import (
+    DATA_bin_dir,
+    DATA_prefix,
     MODEL_batch_size,
     MODEL_block_size,
     MODEL_dropout,
@@ -19,6 +22,8 @@ from parameters import (
     MODEL_n_head,
     MODEL_test_prompt,
     MODEL_weight_decay,
+    TOKENIZER_merges_txt,
+    TOKENIZER_vocab_json,
 )
 
 
@@ -42,17 +47,16 @@ dropout = MODEL_dropout
 check_torch()
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-paths = build_dataset_paths("data_bin", "tinystories_char")
+paths = build_dataset_paths(DATA_bin_dir, DATA_prefix)
+
 train_mm = paths.train.open()
 val_mm = paths.val.open()
 vocab_size = paths.vocab_size
 batch_provider = BatchProvider(train_mm, val_mm, block_size, batch_size, device)
 
-
-stoi = paths.meta["stoi"]
-itos = {int(k): v for k, v in paths.meta["itos"].items()}
-encode = lambda s: [stoi[c] for c in s]
-decode = lambda l: ''.join([itos[i] for i in l])
+tokenizer = ByteBPETokenizer.load(TOKENIZER_vocab_json, TOKENIZER_merges_txt)
+encode = lambda s: tokenizer.encode(s)
+decode = lambda ids: tokenizer.decode(ids)
 
 fancy_print(f"Utilitzing GPT Language Model")
 fancy_print(f"Block size: {block_size}, Embedding Vector Size: {n_embeddings}, Number of Attention Heads: {n_head}, Number of Decoder Layers: {n_decoder_layers},")
@@ -83,7 +87,7 @@ def set_lr(iter_num: int) -> float:
 
 
 ckpt_name = (
-    f"tinystories_char_"
+    f"{DATA_prefix}_"
     f"bs{block_size}_"
     f"bt{batch_size}_"
     f"emb{n_embeddings}_"
@@ -112,8 +116,10 @@ if os.path.exists(ckpt_path):
         fancy_print(f"Resuming from iteration {start_iter}")
     else:
         fancy_print("Checkpoint architecture mismatch; starting fresh")
+else:
+    fancy_print("Architecture not found. Starting Fresh.")
 
-generated_chars = decode(m.generate(context, 500, temperature=0.7, top_k=40)[0].tolist())
+generated_chars = decode(m.generate(context, 200, temperature=0.7, top_k=40)[0].tolist())
 fancy_print(f"Current model performance")
 pp(f"When input is {decode(context.to('cpu').numpy()[0])} the output is:")
 pp(f"{generated_chars}")
@@ -136,7 +142,7 @@ for iter in range(start_iter, max_iters + 1):
     torch.nn.utils.clip_grad_norm_(m.parameters(), grad_clip)
     optimizer.step()
 
-generated_chars = decode(m.generate(context, 500,temperature=0.7, top_k=40)[0].tolist())
+generated_chars = decode(m.generate(context, 200,temperature=0.7, top_k=40)[0].tolist())
 fancy_print(f"Model performance after {max_iters} iterations")
 pp(f"When input is {decode(context.to('cpu').numpy()[0])} the output is:")
 pp(f"{generated_chars}")
