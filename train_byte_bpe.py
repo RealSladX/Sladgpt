@@ -21,7 +21,9 @@ def iter_chunks(paths: list[str], chunk_size: int) -> Iterable[str]:
                 yield chunk
 
 
-def build_word_counts(paths: list[str], chunk_size: int) -> collections.Counter[tuple[str, ...]]:
+def build_word_counts(
+    paths: list[str], chunk_size: int
+) -> collections.Counter[tuple[str, ...]]:
     pat = re.compile(GPT2_PATTERN)
     byte_encoder = bytes_to_unicode()
     word_counts: collections.Counter[tuple[str, ...]] = collections.Counter()
@@ -34,7 +36,9 @@ def build_word_counts(paths: list[str], chunk_size: int) -> collections.Counter[
     return word_counts
 
 
-def most_frequent_pair(word_counts: collections.Counter[tuple[str, ...]]) -> tuple[str, str] | None:
+def most_frequent_pair(
+    word_counts: collections.Counter[tuple[str, ...]],
+) -> tuple[str, str] | None:
     pair_counts: collections.Counter[tuple[str, str]] = collections.Counter()
 
     for word, count in word_counts.items():

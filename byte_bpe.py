@@ -6,7 +6,9 @@ from typing import Dict, Iterable, List, Tuple
 import regex as re
 
 # GPT-2 style pretokenization pattern.
-GPT2_PATTERN = r"""'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+GPT2_PATTERN = (
+    r"""'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+)
 
 
 @lru_cache()
@@ -125,7 +127,9 @@ class ByteBPETokenizer:
         return byte_arr.decode("utf-8", errors=self.errors)
 
     @staticmethod
-    def load(vocab_json_path: str, merges_path: str, errors: str = "replace") -> "ByteBPETokenizer":
+    def load(
+        vocab_json_path: str, merges_path: str, errors: str = "replace"
+    ) -> "ByteBPETokenizer":
         with open(vocab_json_path, "r", encoding="utf-8") as f:
             encoder = json.load(f)
 
@@ -148,4 +152,3 @@ class ByteBPETokenizer:
             f.write("#version: 0.2\n")
             for a, b in self.merges:
                 f.write(f"{a} {b}\n")
-

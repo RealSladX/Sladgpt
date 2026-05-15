@@ -27,7 +27,6 @@ from parameters import (
 )
 
 
-
 PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
 
@@ -36,7 +35,7 @@ batch_size = MODEL_batch_size
 max_iters = MODEL_max_iters
 eval_iters = MODEL_eval_iters
 eval_interval = MODEL_eval_interval
-learning_rate= MODEL_learning_rate
+learning_rate = MODEL_learning_rate
 weight_decay = MODEL_weight_decay
 grad_clip = MODEL_grad_clip
 n_embeddings = MODEL_n_embeddings
@@ -46,7 +45,7 @@ dropout = MODEL_dropout
 
 check_torch()
 device = "cuda" if torch.cuda.is_available() else "cpu"
-
+fancy_print(f"Device set to: {device}")
 paths = build_dataset_paths(DATA_bin_dir, DATA_prefix)
 
 train_mm = paths.train.open()
@@ -59,17 +58,24 @@ encode = lambda s: tokenizer.encode(s)
 decode = lambda ids: tokenizer.decode(ids)
 
 fancy_print(f"Utilitzing GPT Language Model")
-fancy_print(f"Block size: {block_size}, Embedding Vector Size: {n_embeddings}, Number of Attention Heads: {n_head}, Number of Decoder Layers: {n_decoder_layers},")
-bmodel = GPTLanguageModel(vocab_size, block_size, n_embeddings, n_head, n_decoder_layers, dropout)
+fancy_print(
+    f"Block size: {block_size}, Embedding Vector Size: {n_embeddings}, Number of Attention Heads: {n_head}, Number of Decoder Layers: {n_decoder_layers},"
+)
+bmodel = GPTLanguageModel(
+    vocab_size, block_size, n_embeddings, n_head, n_decoder_layers, dropout
+)
 m = bmodel.to(device)
 
 # Measure Initial Model Performance
 encoded_input = encode(MODEL_test_prompt)
 context = torch.tensor([encoded_input], dtype=torch.long, device=device)
-optimizer = torch.optim.AdamW(m.parameters(), lr=learning_rate, weight_decay=weight_decay)
+optimizer = torch.optim.AdamW(
+    m.parameters(), lr=learning_rate, weight_decay=weight_decay
+)
 
 base_lr = learning_rate
 min_lr = learning_rate * 0.1
+
 
 def get_lr(iter_num: int) -> float:
     if iter_num >= max_iters:
@@ -78,6 +84,7 @@ def get_lr(iter_num: int) -> float:
     decay_ratio = iter_num / max_iters
     coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
     return min_lr + coeff * (base_lr - min_lr)
+
 
 def set_lr(iter_num: int) -> float:
     lr = get_lr(iter_num)
@@ -119,7 +126,9 @@ if os.path.exists(ckpt_path):
 else:
     fancy_print("Architecture not found. Starting Fresh.")
 
-generated_chars = decode(m.generate(context, 200, temperature=0.7, top_k=40)[0].tolist())
+generated_chars = decode(
+    m.generate(context, 200, temperature=0.8, top_k=100)[0].tolist()
+)
 fancy_print(f"Current model performance")
 pp(f"When input is {decode(context.to('cpu').numpy()[0])} the output is:")
 pp(f"{generated_chars}")
@@ -132,7 +141,9 @@ for iter in range(start_iter, max_iters + 1):
     lr_now = set_lr(iter)
     if iter % eval_interval == 0:
         losses = estimate_loss(m, batch_provider, eval_iters)
-        fancy_print(f"{iter+1} training loss: {losses['train']:.2f} validation loss: {losses['val']:.2f} lr: {lr_now:.2e}")
+        fancy_print(
+            f"{iter + 1} training loss: {losses['train']:.2f} validation loss: {losses['val']:.2f} lr: {lr_now:.2e}"
+        )
 
     train_x, train_y = batch_provider.get_batch("train")
     logits, loss = m(train_x, train_y)
@@ -142,7 +153,9 @@ for iter in range(start_iter, max_iters + 1):
     torch.nn.utils.clip_grad_norm_(m.parameters(), grad_clip)
     optimizer.step()
 
-generated_chars = decode(m.generate(context, 200,temperature=0.7, top_k=40)[0].tolist())
+generated_chars = decode(
+    m.generate(context, 200, temperature=0.8, top_k=100)[0].tolist()
+)
 fancy_print(f"Model performance after {max_iters} iterations")
 pp(f"When input is {decode(context.to('cpu').numpy()[0])} the output is:")
 pp(f"{generated_chars}")
@@ -150,16 +163,19 @@ pp(f"{generated_chars}")
 fancy_print("Saving Model...")
 
 
-torch.save({
-    "iter": last_iter,
-    "model_state_dict": m.state_dict(),
-    "optimizer_state_dict": optimizer.state_dict(),
-    "vocab_size": vocab_size,
-    "block_size": block_size,
-    "n_embeddings": n_embeddings,
-    "n_head": n_head,
-    "n_decoder_layers": n_decoder_layers,
-    "dropout": dropout,
-}, ckpt_path)
+torch.save(
+    {
+        "iter": last_iter,
+        "model_state_dict": m.state_dict(),
+        "optimizer_state_dict": optimizer.state_dict(),
+        "vocab_size": vocab_size,
+        "block_size": block_size,
+        "n_embeddings": n_embeddings,
+        "n_head": n_head,
+        "n_decoder_layers": n_decoder_layers,
+        "dropout": dropout,
+    },
+    ckpt_path,
+)
 
-fancy_print('Model Saved!')
+fancy_print("Model Saved!")

@@ -15,7 +15,9 @@ from byte_bpe import ByteBPETokenizer
 
 
 def stable_bucket(text: str, modulo: int = 10_000) -> int:
-    digest = hashlib.blake2b(text.encode("utf-8", errors="ignore"), digest_size=8).hexdigest()
+    digest = hashlib.blake2b(
+        text.encode("utf-8", errors="ignore"), digest_size=8
+    ).hexdigest()
     return int(digest, 16) % modulo
 
 
@@ -60,7 +62,9 @@ def prepare_from_hf(
 
     with open(train_path, "wb") as train_f, open(val_path, "wb") as val_f:
         if dataset_name == "openwebtext":
-            ds = load_dataset("Skylion007/openwebtext", "plain_text", split="train", streaming=True)
+            ds = load_dataset(
+                "Skylion007/openwebtext", "plain_text", split="train", streaming=True
+            )
             iterable = ds
             for ex in tqdm(iterable, desc=f"encoding {dataset_name}"):
                 if max_examples is not None and processed >= max_examples:
@@ -83,8 +87,12 @@ def prepare_from_hf(
         elif dataset_name == "tinystories":
             # Prefer explicit train/validation splits if available.
             try:
-                train_ds = load_dataset("roneneldan/TinyStories", split="train", streaming=True)
-                val_ds = load_dataset("roneneldan/TinyStories", split="validation", streaming=True)
+                train_ds = load_dataset(
+                    "roneneldan/TinyStories", split="train", streaming=True
+                )
+                val_ds = load_dataset(
+                    "roneneldan/TinyStories", split="validation", streaming=True
+                )
 
                 for ex in tqdm(train_ds, desc="encoding tinystories train"):
                     if max_examples is not None and processed >= max_examples:
@@ -111,7 +119,9 @@ def prepare_from_hf(
                     processed += 1
 
             except Exception:
-                ds = load_dataset("roneneldan/TinyStories", split="train", streaming=True)
+                ds = load_dataset(
+                    "roneneldan/TinyStories", split="train", streaming=True
+                )
                 for ex in tqdm(ds, desc="encoding tinystories"):
                     if max_examples is not None and processed >= max_examples:
                         break
@@ -215,7 +225,9 @@ def prepare_from_text_files(
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["hf", "text"], required=True)
-    parser.add_argument("--dataset", choices=["openwebtext", "tinystories"], default=None)
+    parser.add_argument(
+        "--dataset", choices=["openwebtext", "tinystories"], default=None
+    )
     parser.add_argument("--text_key", default="text")
     parser.add_argument("--train_text_path", default=None)
     parser.add_argument("--val_text_path", default=None)
@@ -256,4 +268,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

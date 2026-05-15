@@ -26,7 +26,10 @@ def encode_text_file(
 ) -> int:
     total_tokens = 0
 
-    with open(in_path, "r", encoding="utf-8", errors="replace") as src, open(out_path, "wb") as dst:
+    with (
+        open(in_path, "r", encoding="utf-8", errors="replace") as src,
+        open(out_path, "wb") as dst,
+    ):
         while True:
             chunk = src.read(chunk_size)
             if not chunk:
@@ -62,8 +65,12 @@ def main() -> None:
     val_bin = os.path.join(args.out_dir, f"{args.out_prefix}_val.bin")
     meta_path = os.path.join(args.out_dir, f"{args.out_prefix}_meta.json")
 
-    train_tokens = encode_text_file(tokenizer, args.train_text_path, train_bin, np_dtype, args.chunk_size)
-    val_tokens = encode_text_file(tokenizer, args.val_text_path, val_bin, np_dtype, args.chunk_size)
+    train_tokens = encode_text_file(
+        tokenizer, args.train_text_path, train_bin, np_dtype, args.chunk_size
+    )
+    val_tokens = encode_text_file(
+        tokenizer, args.val_text_path, val_bin, np_dtype, args.chunk_size
+    )
 
     meta = {
         "dataset_name": "text_bpe",

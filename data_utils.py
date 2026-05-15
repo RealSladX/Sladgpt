@@ -46,7 +46,9 @@ def build_dataset_paths(data_dir: str, dataset_name: str) -> DatasetPaths:
         )
 
     dtype = meta["dtype"]
-    train_path = meta.get("train_bin", os.path.join(data_dir, f"{dataset_name}_train.bin"))
+    train_path = meta.get(
+        "train_bin", os.path.join(data_dir, f"{dataset_name}_train.bin")
+    )
     val_path = meta.get("val_bin", os.path.join(data_dir, f"{dataset_name}_val.bin"))
 
     return DatasetPaths(
@@ -73,14 +75,22 @@ class BatchProvider:
             )
 
         ix = torch.randint(0, len(data) - self.block_size - 1, (self.batch_size,))
-        x = torch.stack([
-            torch.from_numpy(np.asarray(data[i:i+self.block_size], dtype=np.int64))
-            for i in ix.tolist()
-        ])
-        y = torch.stack([
-            torch.from_numpy(np.asarray(data[i+1:i+1+self.block_size], dtype=np.int64))
-            for i in ix.tolist()
-        ])
+        x = torch.stack(
+            [
+                torch.from_numpy(
+                    np.asarray(data[i : i + self.block_size], dtype=np.int64)
+                )
+                for i in ix.tolist()
+            ]
+        )
+        y = torch.stack(
+            [
+                torch.from_numpy(
+                    np.asarray(data[i + 1 : i + 1 + self.block_size], dtype=np.int64)
+                )
+                for i in ix.tolist()
+            ]
+        )
         return x.to(self.device), y.to(self.device)
 
 

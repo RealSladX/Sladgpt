@@ -13,8 +13,10 @@ class GPTLanguageModel(nn.Module):
 
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
         self.position_embedding_table = nn.Embedding(block_size, n_embd)
-        self.layers = nn.Sequential(*[Block(n_embd, n_head, block_size, dropout) for _ in range(n_layer)])
-        
+        self.layers = nn.Sequential(
+            *[Block(n_embd, n_head, block_size, dropout) for _ in range(n_layer)]
+        )
+
         self.ln_f = nn.LayerNorm(n_embd)
         self.lm_head = nn.Linear(n_embd, vocab_size)
 
@@ -43,15 +45,15 @@ class GPTLanguageModel(nn.Module):
         x = self.ln_f(x)
         logits = self.lm_head(x)
 
-        #If there are no targets, then there is no loss
+        # If there are no targets, then there is no loss
         if targets is None:
             loss = None
 
         else:
-            #Batch, Time, Channels
+            # Batch, Time, Channels
             b, t, C = logits.shape
-            logits = logits.view(b*t, C)
-            targets = targets.view(b*t)
+            logits = logits.view(b * t, C)
+            targets = targets.view(b * t)
             loss = F.cross_entropy(logits, targets)
 
         return logits, loss
@@ -63,21 +65,20 @@ class GPTLanguageModel(nn.Module):
 
         for _ in range(max_new_tokens):
             # crop idx to the last block_size tokens
-            index_cond = index[:, -self.block_size:]
+            index_cond = index[:, -self.block_size :]
             # get the predictions
             logits, loss = self.forward(index_cond)
             # focus only on the last time step
-            logits = logits[:, -1, :] / temperature # becomes (B, C)
+            logits = logits[:, -1, :] / temperature  # becomes (B, C)
 
             if top_k is not None:
-                v, _ = torch.topk(logits,min(top_k, logits.size(-1)))
+                v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
                 logits[logits < v[:, [-1]]] = -float("inf")
 
             # apply softmax to get probabilities
-            probs = F.softmax(logits, dim=-1) # (B, C)
+            probs = F.softmax(logits, dim=-1)  # (B, C)
             # sample from the distribution
-            index_next = torch.multinomial(probs, num_samples=1) # (B, 1)
+            index_next = torch.multinomial(probs, num_samples=1)  # (B, 1)
             # append sampled index to the running sequence
-            index = torch.cat((index, index_next), dim=1) # (B, T+1)
+            index = torch.cat((index, index_next), dim=1)  # (B, T+1)
         return index
-

@@ -26,9 +26,13 @@ itos = {i: ch for ch, i in stoi.items()}
 
 dtype = np.uint16 if len(chars) <= np.iinfo(np.uint16).max else np.uint32
 
+
 def encode_file(in_name, out_name):
     out_path = os.path.join(OUT_DIR, out_name)
-    with open(os.path.join(DATA_PATH, in_name), "r", encoding="utf-8") as src, open(out_path, "wb") as dst:
+    with (
+        open(os.path.join(DATA_PATH, in_name), "r", encoding="utf-8") as src,
+        open(out_path, "wb") as dst,
+    ):
         while True:
             chunk = src.read(1024 * 1024)
             if not chunk:
@@ -36,6 +40,7 @@ def encode_file(in_name, out_name):
             arr = np.fromiter((stoi[c] for c in chunk), dtype=dtype, count=len(chunk))
             dst.write(arr.tobytes())
     return out_path
+
 
 train_bin = encode_file(TRAIN_FILE, f"{PREFIX}_train.bin")
 val_bin = encode_file(VAL_FILE, f"{PREFIX}_val.bin")
