@@ -121,25 +121,6 @@ if os.path.exists(ckpt_path):
 else:
     fancy_print("Architecture not found. Starting Fresh.")
 
-for prompt in MODEL_test_prompts:
-    encoded_input = encode(prompt)
-    context = torch.tensor([encoded_input], dtype=torch.long, device=device)
-    generated_chars = decode(
-        m.generate(
-            context,
-            300,
-            temperature=0.75,
-            top_k=100,
-            top_p=0.9,
-            repetition_penalty=1.12,
-            penalty_window=64,
-        )[0].tolist()
-    )
-    fancy_print(f"Current model performance")
-    pp(f"When input is {decode(context.to('cpu').numpy()[0])} the output is:")
-    pp(f"{generated_chars}")
-
-
 last_iter = start_iter - 1
 
 for iter in range(start_iter, max_iters + 1):
@@ -166,10 +147,10 @@ for prompt in MODEL_test_prompts:
         m.generate(
             context,
             300,
-            temperature=0.75,
-            top_k=100,
-            top_p=0.9,
-            repetition_penalty=1.12,
+            temperature=0.85,
+            top_k=120,
+            top_p=0.92,
+            repetition_penalty=1.1,
             penalty_window=64,
         )[0].tolist()
     )
