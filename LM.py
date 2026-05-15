@@ -20,7 +20,7 @@ from parameters import (
     MODEL_n_decoder_layers,
     MODEL_n_embeddings,
     MODEL_n_head,
-    MODEL_test_prompt,
+    MODEL_test_prompts,
     MODEL_weight_decay,
     TOKENIZER_merges_txt,
     TOKENIZER_vocab_json,
@@ -64,8 +64,6 @@ bmodel = GPTLanguageModel(
 m = bmodel.to(device)
 
 # Measure Initial Model Performance
-encoded_input = encode(MODEL_test_prompt)
-context = torch.tensor([encoded_input], dtype=torch.long, device=device)
 optimizer = torch.optim.AdamW(
     m.parameters(), lr=learning_rate, weight_decay=weight_decay
 )
@@ -123,19 +121,23 @@ if os.path.exists(ckpt_path):
 else:
     fancy_print("Architecture not found. Starting Fresh.")
 
-generated_chars = decode(
-    m.generate(
-        context,
-        300,
-        temperature=0.85,
-        top_k=100,
-        repetition_penalty=1.12,
-        penalty_window=64,
-    )[0].tolist()
-)
-fancy_print(f"Current model performance")
-pp(f"When input is {decode(context.to('cpu').numpy()[0])} the output is:")
-pp(f"{generated_chars}")
+for prompt in MODEL_test_prompts:
+    encoded_input = encode(prompt)
+    context = torch.tensor([encoded_input], dtype=torch.long, device=device)
+    generated_chars = decode(
+        m.generate(
+            context,
+            300,
+            temperature=0.75,
+            top_k=100,
+            top_p=0.9,
+            repetition_penalty=1.12,
+            penalty_window=64,
+        )[0].tolist()
+    )
+    fancy_print(f"Current model performance")
+    pp(f"When input is {decode(context.to('cpu').numpy()[0])} the output is:")
+    pp(f"{generated_chars}")
 
 
 last_iter = start_iter - 1
@@ -157,19 +159,23 @@ for iter in range(start_iter, max_iters + 1):
     torch.nn.utils.clip_grad_norm_(m.parameters(), grad_clip)
     optimizer.step()
 
-generated_chars = decode(
-    m.generate(
-        context,
-        300,
-        temperature=0.85,
-        top_k=100,
-        repetition_penalty=1.12,
-        penalty_window=64,
-    )[0].tolist()
-)
-fancy_print(f"Model performance after {max_iters} iterations")
-pp(f"When input is {decode(context.to('cpu').numpy()[0])} the output is:")
-pp(f"{generated_chars}")
+for prompt in MODEL_test_prompts:
+    encoded_input = encode(prompt)
+    context = torch.tensor([encoded_input], dtype=torch.long, device=device)
+    generated_chars = decode(
+        m.generate(
+            context,
+            300,
+            temperature=0.75,
+            top_k=100,
+            top_p=0.9,
+            repetition_penalty=1.12,
+            penalty_window=64,
+        )[0].tolist()
+    )
+    fancy_print(f"Model performance after {max_iters} iterations")
+    pp(f"When input is {decode(context.to('cpu').numpy()[0])} the output is:")
+    pp(f"{generated_chars}")
 
 fancy_print("Saving Model...")
 

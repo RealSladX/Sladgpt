@@ -65,6 +65,7 @@ class GPTLanguageModel(nn.Module):
         max_new_tokens,
         temperature=0.8,
         top_k=None,
+        top_p=None,
         repetition_penalty=1.0,
         penalty_window=64,
     ):
@@ -87,6 +88,18 @@ class GPTLanguageModel(nn.Module):
                 v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
                 logits[logits < v[:, [-1]]] = -float("inf")
 
+            if top_p is not None:
+                sorted_logits, sorted_indices = torch.sort(logits, descending=True)
+                sorted_probs = F.softmax(sorted_logits, dim=-1)
+                cumulative_probs = torch.cumsum(sorted_probs, dim=-1)
+
+                sorted_indices_to_remove = cumulative_probs > top_p
+                sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
+                sorted_indices_to_remove[..., 0] = False
+
+                indices_to_remove = torch.zeros_like(logits, dtype=torch.bool)
+                indices_to_remove.scatter_(1, sorted_indices, sorted_indices_to_remove)
+                logits = logits.masked_fill(indices_to_remove, -float("inf"))
             probs = F.softmax(logits, dim=-1)
             index_next = torch.multinomial(probs, num_samples=1)
             index = torch.cat((index, index_next), dim=1)
