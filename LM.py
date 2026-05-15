@@ -2,6 +2,7 @@ import math
 import os
 from pprint import pp
 import torch
+import time
 from data_utils import build_dataset_paths, BatchProvider, estimate_loss
 from gpt import GPTLanguageModel
 from byte_bpe import ByteBPETokenizer
@@ -25,7 +26,8 @@ from parameters import (
     TOKENIZER_merges_txt,
     TOKENIZER_vocab_json,
 )
-
+EVAL_ONLY = True
+os.makedirs("./models", exist_ok=True)
 
 block_size = MODEL_block_size
 batch_size = MODEL_batch_size
@@ -54,10 +56,6 @@ tokenizer = ByteBPETokenizer.load(TOKENIZER_vocab_json, TOKENIZER_merges_txt)
 encode = lambda s: tokenizer.encode(s)
 decode = lambda ids: tokenizer.decode(ids)
 
-fancy_print(f"Utilitzing GPT Language Model")
-fancy_print(
-    f"Block size: {block_size}, Embedding Vector Size: {n_embeddings}, Number of Attention Heads: {n_head}, Number of Decoder Layers: {n_decoder_layers},"
-)
 bmodel = GPTLanguageModel(
     vocab_size, block_size, n_embeddings, n_head, n_decoder_layers, dropout
 )
@@ -67,10 +65,31 @@ m = bmodel.to(device)
 optimizer = torch.optim.AdamW(
     m.parameters(), lr=learning_rate, weight_decay=weight_decay
 )
-
+num_params = sum(p.numel() for p in m.parameters())
+fancy_print(f"Model parameters: {num_params / 1e6:.2f}M")
 base_lr = learning_rate
 min_lr = learning_rate * 0.1
 
+if torch.cuda.is_available():
+    fancy_print(f"Allocated VRAM: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+    fancy_print(f"Reserved VRAM: {torch.cuda.memory_reserved() / 1e9:.2f} GB")
+def sample_prompts(label):
+    for prompt in MODEL_test_prompts:
+        encoded_input = encode(prompt)
+        context = torch.tensor([encoded_input], dtype=torch.long, device=device)
+        generated_chars = decode(
+            m.generate(
+                context,
+                300,
+                temperature=0.7,
+                top_k=80,
+                top_p=0.85,
+                repetition_penalty=1.15,
+                penalty_window=64,
+            )[0].tolist()
+        )
+        pp(f"{label}When input is {decode(context.to('cpu').numpy()[0])} the output is:")
+        pp(f"{generated_chars}")
 
 def get_lr(iter_num: int) -> float:
     if iter_num >= max_iters:
@@ -101,6 +120,8 @@ ckpt_path = os.path.join("./models", ckpt_name)
 
 start_iter = 0
 
+best_val_loss = float("inf")
+
 if os.path.exists(ckpt_path):
     ckpt = torch.load(ckpt_path, map_location=device)
 
@@ -114,6 +135,7 @@ if os.path.exists(ckpt_path):
     ):
         m.load_state_dict(ckpt["model_state_dict"])
         optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+        best_val_loss = ckpt.get("best_val_loss", float("inf"))
         start_iter = ckpt["iter"] + 1
         fancy_print(f"Resuming from iteration {start_iter}")
     else:
@@ -121,17 +143,40 @@ if os.path.exists(ckpt_path):
 else:
     fancy_print("Architecture not found. Starting Fresh.")
 
-last_iter = start_iter - 1
+if EVAL_ONLY:
+    sample_prompts("Current model performance")
+    raise SystemExit
 
+last_iter = start_iter - 1
+start = time.perf_counter()
 for iter in range(start_iter, max_iters + 1):
     last_iter = iter
     lr_now = set_lr(iter)
+    if torch.cuda.is_available() and iter == start_iter:
+        fancy_print(f"Peak VRAM: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
     if iter % eval_interval == 0:
         losses = estimate_loss(m, batch_provider, eval_iters)
         fancy_print(
             f"{iter + 1} training loss: {losses['train']:.2f} validation loss: {losses['val']:.2f} lr: {lr_now:.2e}"
         )
-
+        if losses["val"] < best_val_loss:
+            best_val_loss = losses["val"]
+            best_ckpt_path = ckpt_path.replace(".pt", "_best.pt")
+            torch.save(
+                {
+                    "iter": iter,
+                    "model_state_dict": m.state_dict(),
+                    "optimizer_state_dict": optimizer.state_dict(),
+                    "best_val_loss": best_val_loss,
+                    "vocab_size": vocab_size,
+                    "block_size": block_size,
+                    "n_embeddings": n_embeddings,
+                    "n_head": n_head,
+                    "n_decoder_layers": n_decoder_layers,
+                    "dropout": dropout,
+                },
+                best_ckpt_path,
+            )
     train_x, train_y = batch_provider.get_batch("train")
     logits, loss = m(train_x, train_y)
 
@@ -140,23 +185,8 @@ for iter in range(start_iter, max_iters + 1):
     torch.nn.utils.clip_grad_norm_(m.parameters(), grad_clip)
     optimizer.step()
 
-for prompt in MODEL_test_prompts:
-    encoded_input = encode(prompt)
-    context = torch.tensor([encoded_input], dtype=torch.long, device=device)
-    generated_chars = decode(
-        m.generate(
-            context,
-            300,
-            temperature=0.85,
-            top_k=80,
-            top_p=0.85,
-            repetition_penalty=1.15,
-            penalty_window=64,
-        )[0].tolist()
-    )
-    pp(f"When input is {decode(context.to('cpu').numpy()[0])} the output is:")
-    pp(f"{generated_chars}")
-
+fancy_print(f"Training time: {time.perf_counter() - start} seconds")
+sample_prompts(f"Model performance after {max_iters} iterations")
 fancy_print("Saving Model...")
 
 
@@ -165,6 +195,7 @@ torch.save(
         "iter": last_iter,
         "model_state_dict": m.state_dict(),
         "optimizer_state_dict": optimizer.state_dict(),
+        "best_val_loss": best_val_loss,
         "vocab_size": vocab_size,
         "block_size": block_size,
         "n_embeddings": n_embeddings,
