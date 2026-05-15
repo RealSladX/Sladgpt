@@ -27,7 +27,6 @@ from parameters import (
 )
 
 
-PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
 
 block_size = MODEL_block_size
