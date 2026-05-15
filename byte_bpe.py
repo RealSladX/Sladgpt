@@ -12,6 +12,7 @@ GPT2_PATTERN = (
 
 PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
+
 @lru_cache()
 def bytes_to_unicode() -> Dict[int, str]:
     """

@@ -27,8 +27,6 @@ from parameters import (
 )
 
 
-
-
 block_size = MODEL_block_size
 batch_size = MODEL_batch_size
 max_iters = MODEL_max_iters
@@ -126,7 +124,14 @@ else:
     fancy_print("Architecture not found. Starting Fresh.")
 
 generated_chars = decode(
-    m.generate(context, 200, temperature=0.8, top_k=100)[0].tolist()
+    m.generate(
+        context,
+        300,
+        temperature=0.85,
+        top_k=100,
+        repetition_penalty=1.12,
+        penalty_window=64,
+    )[0].tolist()
 )
 fancy_print(f"Current model performance")
 pp(f"When input is {decode(context.to('cpu').numpy()[0])} the output is:")
@@ -153,7 +158,14 @@ for iter in range(start_iter, max_iters + 1):
     optimizer.step()
 
 generated_chars = decode(
-    m.generate(context, 200, temperature=0.8, top_k=100)[0].tolist()
+    m.generate(
+        context,
+        300,
+        temperature=0.85,
+        top_k=100,
+        repetition_penalty=1.12,
+        penalty_window=64,
+    )[0].tolist()
 )
 fancy_print(f"Model performance after {max_iters} iterations")
 pp(f"When input is {decode(context.to('cpu').numpy()[0])} the output is:")

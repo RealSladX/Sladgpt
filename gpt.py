@@ -59,26 +59,36 @@ class GPTLanguageModel(nn.Module):
         return logits, loss
 
     @torch.no_grad()
-    def generate(self, index, max_new_tokens, temperature=0.8, top_k=None):
+    def generate(
+        self,
+        index,
+        max_new_tokens,
+        temperature=0.8,
+        top_k=None,
+        repetition_penalty=1.0,
+        penalty_window=64,
+    ):
         self.eval()
-        # index is (B, T) array of indices in the current context
 
         for _ in range(max_new_tokens):
-            # crop idx to the last block_size tokens
             index_cond = index[:, -self.block_size :]
-            # get the predictions
             logits, loss = self.forward(index_cond)
-            # focus only on the last time step
-            logits = logits[:, -1, :] / temperature  # becomes (B, C)
+            logits = logits[:, -1, :] / temperature
+
+            if repetition_penalty != 1.0:
+                recent = index[:, -penalty_window:]
+                for b in range(logits.size(0)):
+                    recent_tokens = recent[b].unique()
+                    logits[b, recent_tokens] = (
+                        logits[b, recent_tokens] / repetition_penalty
+                    )
 
             if top_k is not None:
                 v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
                 logits[logits < v[:, [-1]]] = -float("inf")
 
-            # apply softmax to get probabilities
-            probs = F.softmax(logits, dim=-1)  # (B, C)
-            # sample from the distribution
-            index_next = torch.multinomial(probs, num_samples=1)  # (B, 1)
-            # append sampled index to the running sequence
-            index = torch.cat((index, index_next), dim=1)  # (B, T+1)
+            probs = F.softmax(logits, dim=-1)
+            index_next = torch.multinomial(probs, num_samples=1)
+            index = torch.cat((index, index_next), dim=1)
+
         return index
