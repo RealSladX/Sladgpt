@@ -55,7 +55,13 @@ def main() -> None:
     args = parser.parse_args()
 
     tokenizer = ByteBPETokenizer.load(args.vocab_json, args.merges_txt)
+    print(tokenizer.encode("<|endoftext|>"))
+    print(tokenizer.decode(tokenizer.encode("<|endoftext|>")))
 
+    probe = "Once upon a time<|endoftext|>There was a dog."
+    ids = tokenizer.encode(probe)
+    print(ids)
+    print(tokenizer.decode(ids))
     dtype_name = choose_memmap_dtype(tokenizer.vocab_size)
     np_dtype = np.uint16 if dtype_name == "uint16" else np.uint32
 

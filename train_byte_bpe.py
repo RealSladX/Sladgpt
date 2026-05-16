@@ -135,7 +135,13 @@ def main() -> None:
     print(f"wrote {merges_path}")
     print(f"vocab_size={tokenizer.vocab_size}")
     print(f"merges={len(tokenizer.merges)}")
+    print(tokenizer.encode("<|endoftext|>"))
+    print(tokenizer.decode(tokenizer.encode("<|endoftext|>")))
 
+    probe = "Once upon a time<|endoftext|>There was a dog."
+    ids = tokenizer.encode(probe)
+    print(ids)
+    print(tokenizer.decode(ids))
     probe = "Once upon a time, there was a little dog."
     ids = tokenizer.encode(probe)
     decoded = tokenizer.decode(ids)

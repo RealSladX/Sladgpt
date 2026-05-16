@@ -16,3 +16,4 @@ models/
 data_bin/*
 tokenizer_out/*
 tokenizer_out_16k/*
+tinystories_bpe16k_eot/*

@@ -111,17 +111,28 @@ class ByteBPETokenizer:
         out = " ".join(word)
         self.cache[token] = out
         return out
+    def _encode_ordinary(self, text: str) -> list[int]:
+        bpe_tokens: list[int] = []
 
-    def encode(self, text: str, add_prefix_space: bool = False) -> List[int]:
-        if add_prefix_space and text and not text.startswith(" "):
-            text = " " + text
-
-        out: List[int] = []
         for token in re.findall(self.pat, text):
-            mapped = "".join(self.byte_encoder[b] for b in token.encode("utf-8"))
-            pieces = self.bpe(mapped).split(" ")
-            out.extend(self.encoder[p] for p in pieces)
-        return out
+            token = "".join(self.byte_encoder[b] for b in token.encode("utf-8"))
+            bpe_tokens.extend(self.encoder[bpe_token] for bpe_token in self.bpe(token).split(" "))
+
+        return bpe_tokens
+    def encode(self, text: str) -> list[int]:
+        if text == "<|endoftext|>":
+            return [self.eot_token]
+
+        ids = []
+        parts = text.split("<|endoftext|>")
+
+        for i, part in enumerate(parts):
+            if part:
+                ids.extend(self._encode_ordinary(part))
+            if i != len(parts) - 1:
+                ids.append(self.eot_token)
+
+        return ids
 
     def decode(self, ids: Iterable[int]) -> str:
         text = "".join(self.decoder[int(i)] for i in ids)
