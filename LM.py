@@ -26,7 +26,8 @@ from parameters import (
     TOKENIZER_merges_txt,
     TOKENIZER_vocab_json,
 )
-EVAL_ONLY = True
+
+EVAL_ONLY = False
 os.makedirs("./models", exist_ok=True)
 
 block_size = MODEL_block_size
@@ -56,6 +57,7 @@ tokenizer = ByteBPETokenizer.load(TOKENIZER_vocab_json, TOKENIZER_merges_txt)
 encode = lambda s: tokenizer.encode(s)
 decode = lambda ids: tokenizer.decode(ids)
 
+print("Testing special handling: ", encode("<|endoftext|>"))
 bmodel = GPTLanguageModel(
     vocab_size, block_size, n_embeddings, n_head, n_decoder_layers, dropout
 )
@@ -73,6 +75,8 @@ min_lr = learning_rate * 0.1
 if torch.cuda.is_available():
     fancy_print(f"Allocated VRAM: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
     fancy_print(f"Reserved VRAM: {torch.cuda.memory_reserved() / 1e9:.2f} GB")
+
+
 def sample_prompts(label):
     for prompt in MODEL_test_prompts:
         encoded_input = encode(prompt)
@@ -88,8 +92,11 @@ def sample_prompts(label):
                 penalty_window=64,
             )[0].tolist()
         )
-        pp(f"{label}When input is {decode(context.to('cpu').numpy()[0])} the output is:")
+        pp(
+            f"{label} | When input is {decode(context.to('cpu').numpy()[0])} the output is:"
+        )
         pp(f"{generated_chars}")
+
 
 def get_lr(iter_num: int) -> float:
     if iter_num >= max_iters:
@@ -152,8 +159,6 @@ start = time.perf_counter()
 for iter in range(start_iter, max_iters + 1):
     last_iter = iter
     lr_now = set_lr(iter)
-    if torch.cuda.is_available() and iter == start_iter:
-        fancy_print(f"Peak VRAM: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
     if iter % eval_interval == 0:
         losses = estimate_loss(m, batch_provider, eval_iters)
         fancy_print(
@@ -184,8 +189,11 @@ for iter in range(start_iter, max_iters + 1):
     loss.backward()
     torch.nn.utils.clip_grad_norm_(m.parameters(), grad_clip)
     optimizer.step()
+    if torch.cuda.is_available() and iter == start_iter:
+        torch.cuda.synchronize()
+        fancy_print(f"Peak VRAM: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
 
-fancy_print(f"Training time: {time.perf_counter() - start} seconds")
+fancy_print(f"Training time: {time.perf_counter() - start:.2f} seconds")
 sample_prompts(f"Model performance after {max_iters} iterations")
 fancy_print("Saving Model...")
 

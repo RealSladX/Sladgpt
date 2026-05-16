@@ -94,7 +94,9 @@ class GPTLanguageModel(nn.Module):
                 cumulative_probs = torch.cumsum(sorted_probs, dim=-1)
 
                 sorted_indices_to_remove = cumulative_probs > top_p
-                sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
+                sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[
+                    ..., :-1
+                ].clone()
                 sorted_indices_to_remove[..., 0] = False
 
                 indices_to_remove = torch.zeros_like(logits, dtype=torch.bool)
